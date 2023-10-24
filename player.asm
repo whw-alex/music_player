@@ -30,7 +30,7 @@ endm
 
 .const 		
 	ButtonEarthID   equ  		1					; button for main window
-	ButtonMarsID    equ  		2
+	ButtonPlayID    equ  		2
 	ButtonJupID     equ  		3
 
 	ID_LIST1 	equ  		101					; button for dialog box 
@@ -43,7 +43,7 @@ endm
 	hInstance 	HINSTANCE 		?
 	CommandLine 	LPSTR 			?
 	hEarthButton   	HWND        		?			; handle of button 
-	hMarsButton     HWND        		?
+	hPlayButton     HWND        		?
 	hJupButton      HWND        		? 
 	icex 		INITCOMMONCONTROLSEX 	<>
 
@@ -63,22 +63,19 @@ endm
 	Earth_title     	db 	"Exit to Earth", 0
 	Earth_text      	db  	"Are you sure to leave ? ", 0
 	
-	Mars_title 		db  	"Welcome to Mars :)", 0
-	Mars_text    		db  	"We hope you enjoyed journey through sound...", 0
-	Stop_text 		db 	"Want to stop ? ", 0
 		
 	Start_song      	db  	"start.wav", 0
 	First_song      	db  	"nujabes.wav", 0
 		
 	msg1    		db  	"Exit to Earth", 0			; msg on button 
-	msg2    		db  	"Fly to Mars", 0
+	msg2    		db  	"play", 0
    	msg3    		db  	"Fly to Jupiter", 0
 
 	Mp3DeviceID 		dd 	0
 	PlayFlag 		dd 	0 
 	Mp3Files 		db 	"*.mp3", 125 dup (0)
 	Mp3Device 		db 	"MPEGVideo", 0
-	FileName 		db 	128 dup (0)
+	FileName 		db 	"test.mp3", 128 dup (0) ;play ¸èÇúÏà¶ÔÂ·¾¶
     
 .code 
 start: 
@@ -176,8 +173,8 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		mov hEarthButton, eax
 
 		invoke CreateWindowEx, NULL, addr ButtonClassName, addr msg2, \
-        WS_CHILD or WS_VISIBLE or BS_DEFPUSHBUTTON, 220, 350, 150, 30, hWnd, ButtonMarsID, hInstance, NULL
-		mov hMarsButton, eax
+        WS_CHILD or WS_VISIBLE or BS_DEFPUSHBUTTON, 220, 350, 150, 30, hWnd, ButtonPlayID, hInstance, NULL
+		mov hPlayButton, eax
 
 		invoke CreateWindowEx, NULL, addr ButtonClassName, addr msg3, \
         WS_CHILD or WS_VISIBLE or BS_DEFPUSHBUTTON, 400, 350, 150, 30, hWnd, ButtonJupID, hInstance, NULL
@@ -190,8 +187,8 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
  		.else
 			.if dx == ButtonEarthID 
 				jmp earth 
-			.elseif dx == ButtonMarsID 
-				jmp mars 
+			.elseif dx == ButtonPlayID 
+				jmp play
 			.else 
 				jmp jupiter 
 			.endif 
@@ -212,25 +209,13 @@ earth:
 	.endif 
 	ret 
 
-mars:
-	invoke PlaySound, offset Start_song, NULL, SND_FILENAME or SND_ASYNC
-	invoke MessageBox, NULL, offset Mars_text, offset Mars_title, MB_YESNO
-	.if eax == IDYES 
-		invoke PlaySound, offset First_song, NULL, SND_FILENAME or SND_ASYNC
-		invoke MessageBox, NULL, offset Stop_text, offset Mars_title, MB_OK
-		.if eax == IDOK 
-			invoke PlaySound, NULL, NULL, SND_ASYNC
-			ret
-		.endif 
-	.elseif eax == IDNO
-		ret 
-	.endif 
-    ret 
-
-jupiter: 
+play:
 	mov icex.dwSize, sizeof INITCOMMONCONTROLSEX
 	invoke InitCommonControlsEx, addr icex 
 	invoke CreateDialogParam, hInstance, addr dlgname, hWnd, addr Multimedia, NULL
+	ret 
+
+jupiter: 
 	ret 
 
 WndProc endp 
@@ -241,14 +226,9 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword
 
 	.if uMsg == WM_INITDIALOG 
 
-		; para: HWND  hDlg, LPSTR lpPathSpec (*.mp3) , int nIDListBox, int nIDStaticPath, UINT uFileType
-		invoke DlgDirList, hWin, addr Mp3Files, ID_LIST1, ID_SHOWPATH, DDL_DIRECTORY or DDL_DRIVES 
-
-		; when the new string is selected, the list box removes the highlight from the previously selected string.
-		invoke SendDlgItemMessage, hWin, ID_LIST1, LB_SETCURSEL, 0, 0 	
-
-		invoke SendDlgItemMessage, hWin, ID_LIST1, LB_GETTEXT, eax, addr FileName     ; get string from the list box 
 		invoke SetFocus, hWin    	; set the keyboard focus on the specified window 
+
+	invoke SetDlgItemText, hWin, 1001, addr FileName ;set filename to ID_STATIC1
 
 	.elseif uMsg == WM_COMMAND
 		mov eax, aParam 
@@ -256,8 +236,6 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword
 		.if eax == ID_BUTTON1 			; play button	
 			.if PlayFlag == 0
 				mov PlayFlag, 1 
-				invoke SendDlgItemMessage, hWin, ID_LIST1, LB_GETCURSEL, 0, 0
-				invoke SendDlgItemMessage, hWin, ID_LIST1, LB_GETTEXT, eax, addr FileName
 				invoke PlayMp3File, hWin, addr FileName 
 			.endif 
 
@@ -265,23 +243,9 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword
 			invoke mciSendCommand, Mp3DeviceID, MCI_CLOSE, 0, 0
 			mov PlayFlag, 0 
 
-		.elseif eax == ID_BUTTON3		; close button (close the dialog box)
-			invoke SendMessage, hWin, WM_CLOSE, NULL, NULL 
-
 		.endif 
 		
 		and eax, 0FFFFh 
-
-		.if eax == ID_LIST1 
-			mov eax, aParam 
-			shr eax, 16 
-
-			.if eax == LBN_DBLCLK 		; double click 
-				invoke DlgDirSelectEx, hWin, addr Mp3Files, 128, ID_LIST1
-				invoke DlgDirList, hWin, addr Mp3Files, ID_LIST1, ID_SHOWPATH, DDL_DIRECTORY or DDL_DRIVES
-				invoke SendDlgItemMessage, hWin, ID_LIST1, LB_SETCURSEL, 0, 0
-			.endif 
-		.endif 
 
 	.elseif uMsg == WM_CLOSE
 		invoke EndDialog, hWin, NULL 	; close the dialog box 

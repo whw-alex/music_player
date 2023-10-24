@@ -1,33 +1,27 @@
 #include "C:\masm32\include\resource.h"
 
-#define  ID_LIST1 101
 #define  ID_BUTTON1 201
 #define  ID_BUTTON2 202
-#define  ID_BUTTON3 203
-#define  ID_SHOWPATH 1000
+#define  ID_STATIC1  1001 
 
 ; ===================================================================================
 
-MAINSCREEN DIALOGEX 29, 28, 256, 180
+MAINSCREEN DIALOGEX 29, 28, 256, 120
 STYLE DS_MODALFRAME | DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_VISIBLE | 
     WS_CAPTION | WS_SYSMENU
-CAPTION "Welcome to Jupiter :)"
+CAPTION "Welcome :)"
 FONT 8, "MS Sans Serif"
 BEGIN
-    LISTBOX         ID_LIST1, 8, 28, 240, 100, LBS_SORT | LBS_MULTICOLUMN | 
-                    WS_HSCROLL
 
-    PUSHBUTTON      "Play", ID_BUTTON1, 128, 152, 36, 20, BS_FLAT,
+    CONTROL         "music", ID_STATIC1, "STATIC", SS_LEFT | WS_CHILD | WS_VISIBLE,  120, 20, 230, 20 
+
+    PUSHBUTTON      "Play", ID_BUTTON1, 80, 90, 36, 20, BS_FLAT,
                     WS_EX_DLGMODALFRAME
 
-    PUSHBUTTON      "Stop", ID_BUTTON2, 172, 152, 36, 20, BS_FLAT,
+    PUSHBUTTON      "Stop", ID_BUTTON2, 150, 90, 36, 20, BS_FLAT,
                     WS_EX_DLGMODALFRAME
 
-    DEFPUSHBUTTON   "Close", ID_BUTTON3, 216, 152, 36, 20, BS_FLAT,
-                    WS_EX_DLGMODALFRAME
 
-    LTEXT           "", ID_SHOWPATH, 8, 12, 240, 10, SS_SUNKEN
 
-    CTEXT           "Click on the mp3 file and start your journey !",
-                    -1, 12, 132, 177, 15, SS_CENTERIMAGE | WS_BORDER
 END
+

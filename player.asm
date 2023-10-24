@@ -46,19 +46,19 @@ endm
 	hPlayButton     HWND        		?
 	hJupButton      HWND        		? 
 	icex 		INITCOMMONCONTROLSEX 	<>
+	hbackground 	HBITMAP 		?
+	bm 				BITMAP 			<>
 
 .data 
 	ClassName 		db 	"test", 0
-	AppName 		db 	"Summer Music Player", 0
+	AppName 		db 	"Music Player", 0
 	ButtonClassName 	db 	"button", 0
 	dlgname 		db 	"MAINSCREEN", 0
 
-	BorderText     		db  	"==============================================", 0
-	ProjectText     	db  	"< Summer Music Player >", 0
+	;BorderText     		db  	"==============================================", 0
 	WelcomeText     	db  	"Weclome !", 0
-	WelcomeText2    	db  	"You get the Free Space tickets !", 0
-	WelcomeText3    	db  	"Which planet will you visit ?", 0
-   	VersionText     	db  	"Version: v1.2      Date: June 12, 2019", 0
+	WelcomeText2    	db  	"Just hit the play button and start to listen to music right away !", 0
+	
 
 	Earth_title     	db 	"Exit to Earth", 0
 	Earth_text      	db  	"Are you sure to leave ? ", 0
@@ -66,6 +66,8 @@ endm
 		
 	Start_song      	db  	"start.wav", 0
 	First_song      	db  	"nujabes.wav", 0
+
+	Background	  	    db  	"background.bmp", 0
 		
 	msg1    		db  	"Exit to Earth", 0			; msg on button 
 	msg2    		db  	"play", 0
@@ -105,7 +107,11 @@ WinMain proc hInst:HINSTANCE, hPrevInst:HINSTANCE, CmdLine:LPSTR, CmdShow:dword
 	push hInst 
 	pop wc.hInstance
 
-	mov wc.hbrBackground, COLOR_GRAYTEXT + 1 or COLOR_BTNFACE + 1			
+	RGB    105, 152, 158
+	invoke CreateSolidBrush, eax
+	;mov wc.hbrBackground, COLOR_GRAYTEXT + 1 or COLOR_BTNFACE + 1	
+	mov wc.hbrBackground,	eax	
+	
 	mov wc.lpszMenuName, NULL 
 	mov wc.lpszClassName, offset ClassName
 
@@ -155,16 +161,23 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
  		RGB    255, 255, 153
         invoke SetTextColor, hdc, eax 
 
-        RGB    109, 109, 109
+        RGB    105, 152, 158
         invoke SetBkColor, hdc, eax 
 
- 		invoke TextOut, hdc, 120, 50, addr BorderText, sizeof BorderText - 1
-		invoke TextOut, hdc, 190, 100, addr ProjectText, sizeof ProjectText - 1
+
+		invoke LoadBitmap, hInstance, 1000
+		mov hbackground, eax
+		invoke SendDlgItemMessage, hWnd, 1000, STM_SETIMAGE, IMAGE_BITMAP, hbackground
+		invoke GetObject, hbackground, sizeof BITMAP, addr bm
+		invoke SelectObject, hdc, hbackground
+		invoke BitBlt, hdc, 120, 50, bm.bmWidth, bm.bmHeight, hdc, 0, 0, SRCCOPY
+ 		;invoke TextOut, hdc, 120, 30, addr BorderText, sizeof BorderText - 1
+		;invoke TextOut, hdc, 140, 80, addr ProjectText, sizeof ProjectText - 1
 		invoke TextOut, hdc, 190, 130, addr WelcomeText, sizeof WelcomeText - 1
-		invoke TextOut, hdc, 190, 160, addr WelcomeText2, sizeof WelcomeText2 - 1
-		invoke TextOut, hdc, 190, 190, addr WelcomeText3, sizeof WelcomeText3 - 1
-		invoke TextOut, hdc, 120, 240, addr BorderText, sizeof BorderText - 1  		
-		invoke TextOut, hdc, 170, 290, addr VersionText, sizeof VersionText - 1 		
+		invoke TextOut, hdc, 150, 160, addr WelcomeText2, sizeof WelcomeText2 - 1
+		;invoke TextOut, hdc, 190, 190, addr WelcomeText3, sizeof WelcomeText3 - 1
+		;invoke TextOut, hdc, 120, 240, addr BorderText, sizeof BorderText - 1  		
+		;invoke TextOut, hdc, 170, 290, addr VersionText, sizeof VersionText - 1 		
 		invoke EndPaint, hWnd, addr ps 
 
  	.elseif uMsg == WM_CREATE

@@ -6,6 +6,8 @@ WinMain proto :dword, :dword, :dword, :dword
 WndProc proto :dword, :dword, :dword, :dword 
 Multimedia proto :dword, :dword, :dword, :dword 
 PlayMp3File proto :dword, :dword 
+FindAllSoundFile proto    ;找到当前目录下所有的歌曲
+GetRandomNum proto :dword  ;这个参数是当前歌曲数量，返回一个【0，当前数量）的随机数
 
 include C:\masm32\include\windows.inc
 include C:\masm32\include\user32.inc
@@ -19,6 +21,9 @@ includelib C:\masm32\lib\kernel32.lib
 includelib C:\masm32\lib\comctl32.lib
 includelib C:\masm32\lib\gdi32.lib
 includelib C:\masm32\lib\winmm.lib
+
+includelib      msvcrt.lib
+include         msvcrt.inc
 
 RGB macro red,green,blue 
     xor eax, eax 
@@ -56,6 +61,8 @@ endm
 	hBitmap		HBITMAP        ?
 	hdcMem          HDC        0
 	hPauseBtn      HWND        		? 
+	hFindFile      HANDLE ?             ;用于查找所有sound文件
+
 
 .data 
 	ClassName 		db 	"test", 0
@@ -83,9 +90,16 @@ endm
 
 	Mp3DeviceID 		dd 	0
 	PlayFlag 		dd 	0 
-	Mp3Files 		db 	"*.mp3", 125 dup (0)
+	Mp3FilePattern 		db 	"*.mp3", 0
+	WavFilePattern 		db 	"*.wav", 0
+
+	SoundFileNum    dd  0
+	FileNameBuffer  db 100 dup(0)      ; 用于存储文件名的缓冲区
+	FileList        db 2000 DUP(0)      
 	Mp3Device 		db 	"MPEGVideo", 0
-	FileName 		db 	"nujabes.wav", 128 dup (0) ;play 歌曲相对路径
+	FileName 		db 	128 dup (0) ;play 歌曲相对路径
+	RandomFileIndex dd  0
+
 	szImagePath     db  "backgroud.bmp",0
 
 	PauseText       db  "Pause",0
@@ -103,6 +117,8 @@ start:
 	invoke ExitProcess, eax 
 
 ; =============================================================================================================
+
+
 
 WinMain proc hInst:HINSTANCE, hPrevInst:HINSTANCE, CmdLine:LPSTR, CmdShow:dword 
 
@@ -145,6 +161,8 @@ WinMain proc hInst:HINSTANCE, hPrevInst:HINSTANCE, CmdLine:LPSTR, CmdShow:dword
     mov hwnd, eax 
     invoke ShowWindow, hwnd, SW_SHOWNORMAL 
     invoke UpdateWindow, hwnd 
+
+	invoke FindAllSoundFile
 
     .while TRUE 
     	invoke GetMessage, addr msg, NULL, 0, 0
@@ -270,6 +288,15 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword
 		.if eax == ID_BUTTON1 			; play button	
 			.if PlayFlag == 0           ;PlayFlag  0代表没有在播放的 1代表正在播放  2代表暂停
  				mov PlayFlag, 1 
+
+				invoke GetRandomNum,SoundFileNum
+				push eax         
+				mov eax, RandomFileIndex
+				imul eax,eax,SIZEOF FileNameBuffer
+				add eax,OFFSET FileList
+				invoke lstrcpy,ADDR FileName, eax
+				invoke crt_printf, OFFSET FileName
+				pop eax
 				invoke PlayMp3File, hWin, addr FileName 
 			.endif 
 
@@ -338,4 +365,87 @@ PlayMp3File proc hWin:dword, NameOfFile:dword
 
 PlayMp3File endp 
 
+; ====================================================================================================================
+
+FindAllSoundFile PROC
+
+	local 	FileData:WIN32_FIND_DATA  
+    invoke FindFirstFile, ADDR Mp3FilePattern, ADDR FileData
+    mov hFindFile, eax
+
+    .while hFindFile != INVALID_HANDLE_VALUE
+        ; 处理找到的文件
+        invoke lstrcpy, ADDR FileNameBuffer, ADDR FileData.cFileName     ; 此时 FileNameBuffer 中包含了一个 .mp3 文件的文件名
+		;invoke crt_printf, OFFSET FileNameBuffer
+
+		;把新得到的这个filename接到FileList后面
+		push eax  
+		mov eax, SoundFileNum
+		imul eax,eax,SIZEOF FileNameBuffer
+		add eax,OFFSET FileList
+		invoke lstrcpy,eax, ADDR FileNameBuffer
+		pop eax
+
+		inc SoundFileNum
+
+        ; 继续查找下一个文件
+        invoke FindNextFile, hFindFile, ADDR FileData
+		.if !eax
+                ; 检查 GetLastError 是否为 ERROR_NO_MORE_FILES
+                invoke GetLastError
+                .if eax == ERROR_NO_MORE_FILES
+                    ; 没有更多匹配项，退出循环
+                    .break
+                .endif
+        .endif
+    .endw
+	 invoke FindClose, hFindFile
+
+	invoke FindFirstFile, ADDR WavFilePattern, ADDR FileData
+	mov hFindFile, eax
+
+	.while hFindFile != INVALID_HANDLE_VALUE
+	    ; 处理找到的文件
+	    invoke lstrcpy, ADDR FileNameBuffer, ADDR FileData.cFileName     ; 此时 FileNameBuffer 中包含了一个 .mp3 文件的文件名
+		;把新得到的这个filename接到FileList后面
+		push eax  
+		mov eax, SoundFileNum
+		imul eax,eax,SIZEOF FileNameBuffer
+		add eax,OFFSET FileList
+		invoke lstrcpy,eax, ADDR FileNameBuffer
+		pop eax
+
+		inc SoundFileNum
+
+	    ; 继续查找下一个文件
+	    invoke FindNextFile, hFindFile, ADDR FileData
+				.if !eax
+                ; 检查 GetLastError 是否为 ERROR_NO_MORE_FILES
+                invoke GetLastError
+                .if eax == ERROR_NO_MORE_FILES
+                    ; 没有更多匹配项，退出循环
+                    .break
+                .endif
+        .endif
+	.endw
+	 invoke FindClose, hFindFile
+	 ret
+
+FindAllSoundFile ENDP
+
+GetRandomNum PROC total_num:DWORD
+	push edx
+	push eax
+	invoke GetTickCount
+	mov edx,0
+	div total_num
+	mov RandomFileIndex,edx
+	pop eax
+	pop edx
+     ret
+GetRandomNum ENDP
+
 end start 
+
+
+

@@ -39,6 +39,11 @@ endm
 	ID_BUTTON3 	equ  		203
 	ID_SHOWPATH 	equ  		1000
 
+	clientHeight    equ       480
+	clientWidth     equ       610
+	imageWidth      equ       1500
+	imageHeight     equ      1500
+
 .data?
 	hInstance 	HINSTANCE 		?
 	CommandLine 	LPSTR 			?
@@ -48,6 +53,8 @@ endm
 	icex 		INITCOMMONCONTROLSEX 	<>
 	hbackground 	HBITMAP 		?
 	bm 				BITMAP 			<>
+	hBitmap		HBITMAP        ?
+	hdcMem          HDC        0
 
 .data 
 	ClassName 		db 	"test", 0
@@ -77,7 +84,8 @@ endm
 	PlayFlag 		dd 	0 
 	Mp3Files 		db 	"*.mp3", 125 dup (0)
 	Mp3Device 		db 	"MPEGVideo", 0
-	FileName 		db 	"test.mp3", 128 dup (0) ;play 歌曲相对路径
+	FileName 		db 	"C418-Subwoofer Lullaby.mp3", 128 dup (0) ;play 歌曲相对路径
+	szImagePath     db  "backgroud.bmp",0
     
 .code 
 start: 
@@ -107,10 +115,11 @@ WinMain proc hInst:HINSTANCE, hPrevInst:HINSTANCE, CmdLine:LPSTR, CmdShow:dword
 	push hInst 
 	pop wc.hInstance
 
-	RGB    105, 152, 158
-	invoke CreateSolidBrush, eax
+	;========================设置背景颜色=======================现在不用
+	;RGB    96,208,255
+	;invoke CreateSolidBrush, eax
 	;mov wc.hbrBackground, COLOR_GRAYTEXT + 1 or COLOR_BTNFACE + 1	
-	mov wc.hbrBackground,	eax	
+	;mov wc.hbrBackground,	eax	
 	
 	mov wc.lpszMenuName, NULL 
 	mov wc.lpszClassName, offset ClassName
@@ -126,7 +135,7 @@ WinMain proc hInst:HINSTANCE, hPrevInst:HINSTANCE, CmdLine:LPSTR, CmdShow:dword
 
 	invoke CreateWindowEx, WS_EX_CLIENTEDGE, addr ClassName, \
 		addr AppName, WS_VISIBLE or WS_OVERLAPPED or WS_SYSMENU, \
-        100, 100, 610, 480, \
+        100, 100, clientWidth, clientHeight, \
         NULL, NULL, hInst, NULL 
 
     mov hwnd, eax 
@@ -161,23 +170,31 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
  		RGB    255, 255, 153
         invoke SetTextColor, hdc, eax 
 
-        RGB    105, 152, 158
+        RGB    96,208,255
         invoke SetBkColor, hdc, eax 
 
+		invoke LoadImage,NULL, addr szImagePath,IMAGE_BITMAP,0,0,LR_LOADFROMFILE
+		mov hBitmap,eax
 
-		invoke LoadBitmap, hInstance, 1000
-		mov hbackground, eax
-		invoke SendDlgItemMessage, hWnd, 1000, STM_SETIMAGE, IMAGE_BITMAP, hbackground
-		invoke GetObject, hbackground, sizeof BITMAP, addr bm
-		invoke SelectObject, hdc, hbackground
-		invoke BitBlt, hdc, 120, 50, bm.bmWidth, bm.bmHeight, hdc, 0, 0, SRCCOPY
- 		;invoke TextOut, hdc, 120, 30, addr BorderText, sizeof BorderText - 1
-		;invoke TextOut, hdc, 140, 80, addr ProjectText, sizeof ProjectText - 1
+		; 创建临时设备上下文
+		invoke CreateCompatibleDC, hdc
+		mov hdcMem, eax
+		
+		; 选择位图到临时设备上下文
+		invoke SelectObject, hdcMem, hBitmap
+		
+		; 绘制图像
+		invoke SetStretchBltMode, hdc, HALFTONE
+		invoke StretchBlt, hdc, 0, 0, clientWidth, clientHeight, hdcMem, 0, 0, imageWidth,imageHeight,SRCCOPY
+		
+		; 清理资源
+		invoke DeleteDC, hdcMem
+		invoke DeleteObject, hBitmap
+
+
 		invoke TextOut, hdc, 190, 130, addr WelcomeText, sizeof WelcomeText - 1
 		invoke TextOut, hdc, 150, 160, addr WelcomeText2, sizeof WelcomeText2 - 1
-		;invoke TextOut, hdc, 190, 190, addr WelcomeText3, sizeof WelcomeText3 - 1
-		;invoke TextOut, hdc, 120, 240, addr BorderText, sizeof BorderText - 1  		
-		;invoke TextOut, hdc, 170, 290, addr VersionText, sizeof VersionText - 1 		
+		;invoke TextOut, hdc, 120, 240, addr BorderText, sizeof BorderText - 1  			
 		invoke EndPaint, hWnd, addr ps 
 
  	.elseif uMsg == WM_CREATE

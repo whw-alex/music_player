@@ -1,2 +1,3 @@
 C:\Users\whw\Desktop\music_player\Debug\music_player.exe
 C:\Users\linmi\Documents\GitHub\music_player\Debug\music_player.exe
+C:\Users\whw\Documents\GitHub\music_player\Debug\music_player.exe

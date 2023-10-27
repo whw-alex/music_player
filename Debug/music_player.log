@@ -1,6 +1,6 @@
 ﻿  Assembling player.asm...
-player.asm(139): warning A6004: procedure argument or local not referenced : hPrevInst
-player.asm(139): warning A6004: procedure argument or local not referenced : CmdLine
-player.asm(139): warning A6004: procedure argument or local not referenced : CmdShow
-player.asm(263): warning A6004: procedure argument or local not referenced : bParam
-  music_player.vcxproj -> C:\Users\linmi\Documents\GitHub\music_player\Debug\music_player.exe
+player.asm(145): warning A6004: procedure argument or local not referenced : hPrevInst
+player.asm(145): warning A6004: procedure argument or local not referenced : CmdLine
+player.asm(145): warning A6004: procedure argument or local not referenced : CmdShow
+player.asm(275): warning A6004: procedure argument or local not referenced : bParam
+  music_player.vcxproj -> C:\Users\whw\Documents\GitHub\music_player\Debug\music_player.exe

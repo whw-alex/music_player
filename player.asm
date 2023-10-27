@@ -55,6 +55,7 @@ endm
 	bm 				BITMAP 			<>
 	hBitmap		HBITMAP        ?
 	hdcMem          HDC        0
+	hPauseBtn      HWND        		? 
 
 .data 
 	ClassName 		db 	"test", 0
@@ -76,16 +77,19 @@ endm
 
 	Background	  	    db  	"background.bmp", 0
 		
-	msg1    		db  	"Exit to Earth", 0			; msg on button 
+	msg1    		db  	"exit", 0			; msg on button 
 	msg2    		db  	"play", 0
-   	msg3    		db  	"Fly to Jupiter", 0
+   	msg3    		db  	"select", 0
 
 	Mp3DeviceID 		dd 	0
 	PlayFlag 		dd 	0 
 	Mp3Files 		db 	"*.mp3", 125 dup (0)
 	Mp3Device 		db 	"MPEGVideo", 0
-	FileName 		db 	"C418-Subwoofer Lullaby.mp3", 128 dup (0) ;play 歌曲相对路径
+	FileName 		db 	"nujabes.wav", 128 dup (0) ;play 歌曲相对路径
 	szImagePath     db  "backgroud.bmp",0
+
+	PauseText       db  "Pause",0
+	ResumeText       db  "Resume",0
     
 .code 
 start: 
@@ -264,14 +268,31 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword
 		mov eax, aParam 
 
 		.if eax == ID_BUTTON1 			; play button	
-			.if PlayFlag == 0
-				mov PlayFlag, 1 
+			.if PlayFlag == 0           ;PlayFlag  0代表没有在播放的 1代表正在播放  2代表暂停
+ 				mov PlayFlag, 1 
 				invoke PlayMp3File, hWin, addr FileName 
 			.endif 
 
 		.elseif eax == ID_BUTTON2 		; stop button 
 			invoke mciSendCommand, Mp3DeviceID, MCI_CLOSE, 0, 0
 			mov PlayFlag, 0 
+
+		.elseif eax == ID_BUTTON3 		; pause button 
+			invoke GetDlgItem, hWin,  ID_BUTTON3 
+			mov hPauseBtn,eax
+			.if PlayFlag == 1
+				invoke mciSendCommand, Mp3DeviceID, MCI_PAUSE, 0, 0
+				invoke SetWindowText, hPauseBtn, addr ResumeText
+				mov PlayFlag, 2  
+
+			.elseif PlayFlag == 2
+				invoke mciSendCommand, Mp3DeviceID, MCI_RESUME, 0, 0
+				invoke SetWindowText, hPauseBtn, addr PauseText
+				mov PlayFlag, 1  				
+
+			.endif
+
+
 
 		.endif 
 		

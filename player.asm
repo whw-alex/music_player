@@ -34,9 +34,9 @@ RGB macro red,green,blue
 endm
 
 .const 		
-	ButtonEarthID   equ  		1					; button for main window
+	ButtonExitID   equ  		1					; button for main window
 	ButtonPlayID    equ  		2
-	ButtonJupID     equ  		3
+	ButtonSelectID     equ  		3
 
 	ID_LIST1 	equ  		101					; button for dialog box 
 	ID_BUTTON1 	equ  		201
@@ -71,7 +71,7 @@ endm
 	dlgname 		db 	"MAINSCREEN", 0
 
 	;BorderText     		db  	"==============================================", 0
-	WelcomeText     	db  	"Weclome !", 0
+	WelcomeText     	db  	"Weclome", 0
 	WelcomeText2    	db  	"Just hit the play button and start to listen to music right away !", 0
 	
 
@@ -192,8 +192,8 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
  		RGB    255, 255, 153
         invoke SetTextColor, hdc, eax 
 
-        RGB    96,208,255
-        invoke SetBkColor, hdc, eax 
+        ;RGB   96,208,255
+        invoke SetBkMode, hdc, TRANSPARENT
 
 		invoke LoadImage,NULL, addr szImagePath,IMAGE_BITMAP,0,0,LR_LOADFROMFILE
 		mov hBitmap,eax
@@ -214,22 +214,22 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		invoke DeleteObject, hBitmap
 
 
-		invoke TextOut, hdc, 190, 130, addr WelcomeText, sizeof WelcomeText - 1
-		invoke TextOut, hdc, 150, 160, addr WelcomeText2, sizeof WelcomeText2 - 1
+		invoke TextOut, hdc, 280, 280, addr WelcomeText, sizeof WelcomeText - 1
+		;invoke TextOut, hdc, 150, 160, addr WelcomeText2, sizeof WelcomeText2 - 1
 		;invoke TextOut, hdc, 120, 240, addr BorderText, sizeof BorderText - 1  			
 		invoke EndPaint, hWnd, addr ps 
 
  	.elseif uMsg == WM_CREATE
  		invoke CreateWindowEx, NULL, addr ButtonClassName, addr msg1, \
-        WS_CHILD or WS_VISIBLE or BS_DEFPUSHBUTTON, 40, 350, 150, 30, hWnd, ButtonEarthID, hInstance, NULL
+        WS_CHILD or WS_VISIBLE or BS_DEFPUSHBUTTON, 400, 150, 120, 30, hWnd, ButtonExitID, hInstance, NULL
 		mov hEarthButton, eax
 
 		invoke CreateWindowEx, NULL, addr ButtonClassName, addr msg2, \
-        WS_CHILD or WS_VISIBLE or BS_DEFPUSHBUTTON, 220, 350, 150, 30, hWnd, ButtonPlayID, hInstance, NULL
+        WS_CHILD or WS_VISIBLE or BS_DEFPUSHBUTTON, 400, 250, 120, 30, hWnd, ButtonPlayID, hInstance, NULL
 		mov hPlayButton, eax
 
 		invoke CreateWindowEx, NULL, addr ButtonClassName, addr msg3, \
-        WS_CHILD or WS_VISIBLE or BS_DEFPUSHBUTTON, 400, 350, 150, 30, hWnd, ButtonJupID, hInstance, NULL
+        WS_CHILD or WS_VISIBLE or BS_DEFPUSHBUTTON, 400, 350, 120, 30, hWnd, ButtonSelectID, hInstance, NULL
 		mov hJupButton, eax
 
  	.elseif uMsg == WM_COMMAND 
@@ -237,7 +237,7 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
  		.if lParam == 0
  			ret 
  		.else
-			.if dx == ButtonEarthID 
+			.if dx == ButtonExitID 
 				jmp earth 
 			.elseif dx == ButtonPlayID 
 				jmp play
@@ -298,6 +298,7 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword
 				invoke crt_printf, OFFSET FileName
 				pop eax
 				invoke PlayMp3File, hWin, addr FileName 
+				invoke SetDlgItemText, hWin, 1001, addr FileName ;set filename to ID_STATIC1
 			.endif 
 
 		.elseif eax == ID_BUTTON2 		; stop button 
@@ -432,6 +433,8 @@ FindAllSoundFile PROC
 	 ret
 
 FindAllSoundFile ENDP
+
+; ====================================================================================================================
 
 GetRandomNum PROC total_num:DWORD
 	push edx

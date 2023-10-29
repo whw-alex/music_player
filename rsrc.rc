@@ -14,7 +14,7 @@ CAPTION "Welcome :)"
 FONT 8, "MS Sans Serif"
 BEGIN
 
-    CONTROL         "music", ID_STATIC1, "STATIC", SS_LEFT | WS_CHILD | WS_VISIBLE,  120, 20, 230, 20 
+    CONTROL         "music", ID_STATIC1, "STATIC", SS_LEFT | WS_CHILD | WS_VISIBLE,  80, 20, 230, 20 
 
     PUSHBUTTON      "Play", ID_BUTTON1, 30, 90, 36, 20, BS_FLAT,
                     WS_EX_DLGMODALFRAME

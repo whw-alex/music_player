@@ -5,6 +5,8 @@ option casemap:none
 WinMain proto :dword, :dword, :dword, :dword
 WndProc proto :dword, :dword, :dword, :dword 
 Multimedia proto :dword, :dword, :dword, :dword 
+PlayLocalList proto :dword, :dword, :dword, :dword 
+
 PlayMp3File proto :dword, :dword 
 FindAllSoundFile proto    ;找到当前目录下所有的歌曲
 GetRandomNum proto :dword  ;这个参数是当前歌曲数量，返回一个【0，当前数量）的随机数
@@ -42,6 +44,9 @@ endm
 	ID_BUTTON1 	equ  		201
    	ID_BUTTON2 	equ  		202
 	ID_BUTTON3 	equ  		203
+	ID_BUTTON4	equ			204
+	ID_BUTTON5	equ			205
+	ID_BUTTON6	equ			206
 	ID_SHOWPATH 	equ  		1000
 
 	clientHeight    equ       480
@@ -52,7 +57,7 @@ endm
 .data?
 	hInstance 	HINSTANCE 		?
 	CommandLine 	LPSTR 			?
-	hEarthButton   	HWND        		?			; handle of button 
+	hQuitButton   	HWND        		?			; handle of button 
 	hPlayButton     HWND        		?
 	hJupButton      HWND        		? 
 	icex 		INITCOMMONCONTROLSEX 	<>
@@ -69,14 +74,15 @@ endm
 	AppName 		db 	"Music Player", 0
 	ButtonClassName 	db 	"button", 0
 	dlgname 		db 	"MAINSCREEN", 0
+	dlgname1		db	"MAINSCREEN1", 0
 
 	;BorderText     		db  	"==============================================", 0
 	WelcomeText     	db  	"Weclome", 0
 	WelcomeText2    	db  	"Just hit the play button and start to listen to music right away !", 0
 	
 
-	Earth_title     	db 	"Exit to Earth", 0
-	Earth_text      	db  	"Are you sure to leave ? ", 0
+	Quit_title     	db 	"Exit", 0
+	Quit_text      	db  	"Are you sure to leave ? ", 0
 	
 		
 	Start_song      	db  	"start.wav", 0
@@ -84,7 +90,7 @@ endm
 
 	Background	  	    db  	"background.bmp", 0
 		
-	msg1    		db  	"exit", 0			; msg on button 
+	msg1    		db  	"quit", 0			; msg on button 
 	msg2    		db  	"play", 0
    	msg3    		db  	"select", 0
 
@@ -222,7 +228,7 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
  	.elseif uMsg == WM_CREATE
  		invoke CreateWindowEx, NULL, addr ButtonClassName, addr msg1, \
         WS_CHILD or WS_VISIBLE or BS_DEFPUSHBUTTON, 400, 150, 120, 30, hWnd, ButtonExitID, hInstance, NULL
-		mov hEarthButton, eax
+		mov hQuitButton, eax
 
 		invoke CreateWindowEx, NULL, addr ButtonClassName, addr msg2, \
         WS_CHILD or WS_VISIBLE or BS_DEFPUSHBUTTON, 400, 250, 120, 30, hWnd, ButtonPlayID, hInstance, NULL
@@ -238,11 +244,11 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
  			ret 
  		.else
 			.if dx == ButtonExitID 
-				jmp earth 
+				jmp quit 
 			.elseif dx == ButtonPlayID 
 				jmp play
 			.else 
-				jmp jupiter 
+				jmp select
 			.endif 
 		.endif 
 	.else 
@@ -254,8 +260,8 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 	xor eax, eax 
  	ret
 
-earth: 
-	invoke MessageBox, NULL, offset Earth_text, offset Earth_title, MB_YESNO or MB_ICONQUESTION
+quit: 
+	invoke MessageBox, NULL, offset Quit_text, offset Quit_title, MB_YESNO or MB_ICONQUESTION
 	.if eax == IDYES 
 		invoke DestroyWindow, hWnd 
 	.endif 
@@ -267,7 +273,10 @@ play:
 	invoke CreateDialogParam, hInstance, addr dlgname, hWnd, addr Multimedia, NULL
 	ret 
 
-jupiter: 
+select: 
+	mov icex.dwSize, sizeof INITCOMMONCONTROLSEX
+	invoke InitCommonControlsEx, addr icex 
+	invoke CreateDialogParam, hInstance, addr dlgname1, hWnd, addr PlayLocalList, NULL
 	ret 
 
 WndProc endp 
@@ -339,6 +348,67 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword
 	ret 
 
 Multimedia endp 
+
+;=====================================================================================
+PlayLocalList proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword 
+
+	.if uMsg == WM_INITDIALOG 
+
+		; para: HWND  hDlg, LPSTR lpPathSpec (*.mp3) , int nIDListBox, int nIDStaticPath, UINT uFileType
+		invoke DlgDirList, hWin, addr Mp3FilePattern, ID_LIST1, ID_SHOWPATH, DDL_DIRECTORY or DDL_DRIVES 
+
+		; when the new string is selected, the list box removes the highlight from the previously selected string.
+		invoke SendDlgItemMessage, hWin, ID_LIST1, LB_SETCURSEL, 0, 0 	
+
+		invoke SendDlgItemMessage, hWin, ID_LIST1, LB_GETTEXT, eax, addr FileName     ; get string from the list box 
+		invoke SetFocus, hWin    	; set the keyboard focus on the specified window 
+
+	.elseif uMsg == WM_COMMAND
+		mov eax, aParam 
+
+		.if eax == ID_BUTTON4 			; play button	
+			.if PlayFlag == 0
+				mov PlayFlag, 1 
+				invoke SendDlgItemMessage, hWin, ID_LIST1, LB_GETCURSEL, 0, 0
+				invoke SendDlgItemMessage, hWin, ID_LIST1, LB_GETTEXT, eax, addr FileName
+				invoke PlayMp3File, hWin, addr FileName 
+			.endif 
+
+		.elseif eax == ID_BUTTON5 		; stop button 
+			invoke mciSendCommand, Mp3DeviceID, MCI_CLOSE, 0, 0
+			mov PlayFlag, 0 
+
+		.elseif eax == ID_BUTTON6		; close button (close the dialog box)
+			invoke SendMessage, hWin, WM_CLOSE, NULL, NULL 
+
+		.endif 
+		
+		and eax, 0FFFFh 
+
+		.if eax == ID_LIST1 
+			mov eax, aParam 
+			shr eax, 16 
+
+			.if eax == LBN_DBLCLK 		; double click 
+				invoke DlgDirSelectEx, hWin, addr Mp3FilePattern, 128, ID_LIST1
+				invoke DlgDirList, hWin, addr Mp3FilePattern, ID_LIST1, ID_SHOWPATH, DDL_DIRECTORY or DDL_DRIVES
+				invoke SendDlgItemMessage, hWin, ID_LIST1, LB_SETCURSEL, 0, 0
+			.endif 
+		.endif 
+
+	.elseif uMsg == WM_CLOSE
+		invoke EndDialog, hWin, NULL 	; close the dialog box 
+
+	.elseif uMsg == MM_MCINOTIFY 
+		invoke mciSendCommand, Mp3DeviceID, MCI_CLOSE, 0, 0				
+		mov PlayFlag, 0
+
+	.endif
+
+	xor eax, eax 
+	ret 
+
+PlayLocalList endp 
 
 ; ====================================================================================================================
 

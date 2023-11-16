@@ -1150,6 +1150,7 @@
 #define WM_PENWINLAST                   0x038F
 #define WM_DDE_FIRST                    0x03E0
 #define ID_SHOWPATH                     1000
+#define ID_STATIC1                      1001
 #define CF_GDIOBJLAST                   0x03FF
 #define RBS_BANDBORDERS                 0x0400
 #define LVS_OWNERDRAWFIXED              0x0400
@@ -1311,7 +1312,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        102
+#define _APS_NEXT_RESOURCE_VALUE        101
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1000
 #define _APS_NEXT_SYMED_VALUE           101

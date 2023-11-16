@@ -5,29 +5,57 @@
 #define  ID_BUTTON3 203
 #define  ID_STATIC1  1001 
 
-; ===================================================================================
+; ================================================================================== =
 
 MAINSCREEN DIALOGEX 29, 28, 256, 120
-STYLE DS_MODALFRAME | DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_VISIBLE | 
-    WS_CAPTION | WS_SYSMENU
+STYLE DS_MODALFRAME | DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_VISIBLE |
+WS_CAPTION | WS_SYSMENU
 CAPTION "Welcome :)"
 FONT 8, "MS Sans Serif"
 BEGIN
 
-    CONTROL         "music", ID_STATIC1, "STATIC", SS_LEFT | WS_CHILD | WS_VISIBLE,  80, 20, 230, 20 
+CONTROL         "music", ID_STATIC1, "STATIC", SS_LEFT | WS_CHILD | WS_VISIBLE, 80, 20, 230, 20
 
-    PUSHBUTTON      "Play", ID_BUTTON1, 30, 90, 36, 20, BS_FLAT,
-                    WS_EX_DLGMODALFRAME
+PUSHBUTTON      "Play", ID_BUTTON1, 30, 90, 36, 20, BS_FLAT,
+WS_EX_DLGMODALFRAME
 
-    PUSHBUTTON      "Stop", ID_BUTTON2, 100, 90, 36, 20, BS_FLAT,
-                    WS_EX_DLGMODALFRAME
+PUSHBUTTON      "Stop", ID_BUTTON2, 100, 90, 36, 20, BS_FLAT,
+WS_EX_DLGMODALFRAME
 
-    PUSHBUTTON      "Pause", ID_BUTTON3, 170, 90, 36, 20, BS_FLAT,
-                    WS_EX_DLGMODALFRAME
-
-
-
-
+PUSHBUTTON      "Pause", ID_BUTTON3, 170, 90, 36, 20, BS_FLAT,
+WS_EX_DLGMODALFRAME
 
 END
 
+
+#define  ID_LIST1 101
+#define  ID_BUTTON4 204
+#define  ID_BUTTON5 205
+#define  ID_BUTTON6 206
+#define  ID_SHOWPATH 1000
+
+; ================================================================================== =
+
+MAINSCREEN1 DIALOGEX 29, 28, 256, 180
+STYLE DS_MODALFRAME | DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_VISIBLE |
+WS_CAPTION | WS_SYSMENU
+CAPTION "Select the music you love!"
+FONT 8, "MS Sans Serif"
+BEGIN
+LISTBOX         ID_LIST1, 8, 28, 240, 100, LBS_SORT | LBS_MULTICOLUMN |
+WS_HSCROLL
+
+PUSHBUTTON      "Play", ID_BUTTON4, 128, 152, 36, 20, BS_FLAT,
+WS_EX_DLGMODALFRAME
+
+PUSHBUTTON      "Stop", ID_BUTTON5, 172, 152, 36, 20, BS_FLAT,
+WS_EX_DLGMODALFRAME
+
+DEFPUSHBUTTON   "Close", ID_BUTTON6, 216, 152, 36, 20, BS_FLAT,
+WS_EX_DLGMODALFRAME
+
+LTEXT           "", ID_SHOWPATH, 8, 12, 240, 10, SS_SUNKEN
+
+CTEXT           "Click on the music file and start enjoying!",
+-1, 12, 132, 177, 15, SS_CENTERIMAGE | WS_BORDER
+END

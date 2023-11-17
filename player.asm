@@ -4,7 +4,7 @@ option casemap:none
 
 WinMain proto :dword, :dword, :dword, :dword
 WndProc proto :dword, :dword, :dword, :dword 
-Multimedia proto :dword, :dword, :dword, :dword 
+Multimedia proto :dword, :dword, :dword, :dword , :dword 
 PlayLocalList proto :dword, :dword, :dword, :dword 
 
 PlayMp3File proto :dword, :dword 
@@ -17,6 +17,7 @@ include C:\masm32\include\kernel32.inc
 include C:\masm32\include\comctl32.inc
 include C:\masm32\include\gdi32.inc
 include C:\masm32\include\winmm.inc
+include C:\masm32\include\user32.inc
 
 includelib C:\masm32\lib\user32.lib
 includelib C:\masm32\lib\kernel32.lib
@@ -48,11 +49,13 @@ endm
 	ID_BUTTON5	equ			205
 	ID_BUTTON6	equ			206
 	ID_SHOWPATH 	equ  		1000
+	ID_PROGRESSBAR1	equ			2001
 
 	clientHeight    equ       480
 	clientWidth     equ       610
 	imageWidth      equ       1500
 	imageHeight     equ      1500
+
 
 .data?
 	hInstance 	HINSTANCE 		?
@@ -67,6 +70,7 @@ endm
 	hdcMem          HDC        0
 	hPauseBtn      HWND        		? 
 	hFindFile      HANDLE ?             ;用于查找所有sound文件
+	hProgressBar   HANDLE ?
 
 
 .data 
@@ -110,6 +114,17 @@ endm
 
 	PauseText       db  "Pause",0
 	ResumeText       db  "Resume",0
+
+	musicPosition    dd    0
+	musicLength      dd    0
+	ErrorBuffer		 db    2000 DUP(0)
+	MciStatusParams MCI_STATUS_PARMS <>
+	seekParams     MCI_SEEK_PARMS <>
+	replayParams     MCI_PLAY_PARMS <>
+
+	HereMsg          db  "here!",0
+	pnmhdr NMHDR <?> ; 通知消息结构体
+	OldProgressBarWndProc dd 0
     
 .code 
 start: 
@@ -281,15 +296,113 @@ select:
 
 WndProc endp 
 
+;=====================================================================================
+
+HandleHorizontalScroll proc
+local nPos:DWORD
+local totalWidth:DWORD
+local newPosition:DWORD
+
+; 获取当前滚动条位置
+invoke SendMessage, hProgressBar, PBM_GETPOS, 0, 0
+mov nPos, eax
+
+; 获取进度条的总宽度
+invoke SendMessage, hProgressBar, PBM_GETRANGE, FALSE, 0
+mov totalWidth, eax
+
+; 计算新的播放位置
+mov eax, totalWidth
+imul eax, nPos
+mov newPosition, eax
+idiv totalWidth
+
+
+
+ret
+HandleHorizontalScroll endp
+
 ; =============================================================================================================
 
-Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword 
+HandleNotifyMessage proc
+local code:DWORD
+
+; 获取通知消息的代码
+mov eax, [pnmhdr].code
+mov [code], eax
+
+; 处理进度条通知消息
+.if [code] == PBM_DELTAPOS
+; 在这里处理进度条位置变化的逻辑
+invoke HandleHorizontalScroll
+.endif
+
+ret
+HandleNotifyMessage endp
+
+; =============================================================================================================
+
+ProgressBarWndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
+	
+	LOCAL xPos:WORD
+	LOCAL newPos:DWORD
+
+
+	.if uMsg == WM_LBUTTONDOWN
+	; 在这里处理进度条点击事件，你可以获取鼠标点击的坐标，并计算出新的进度条位置
+	; 然后根据新的位置设置MCI播放位置
+		
+		mov eax, lParam
+		mov xPos, ax ; 获取低16位，即x坐标
+		
+		; 计算新的位置并设置MCI播放位置
+		; 这里的计算方式可能需要根据你的需求进行调整
+		shl eax,16
+		shr eax,16
+		imul eax,musicLength
+		mov edx,0
+		mov ecx, 300 ; 进度条的总长度
+		div ecx ; 计算点击位置在总长度中的百分比
+		mov newPos, eax ; 将ms保存到newPos中
+
+		mov seekParams.dwTo, eax
+		mov replayParams.dwFrom,eax
+		mov seekParams.dwCallback, 0
+		
+		; 设置MCI播放位置
+		;invoke mciSendCommand, Mp3DeviceID, MCI_SEEK, MCI_SEEK_TO_PERCENTAGE, newPos
+		invoke mciSendCommand, Mp3DeviceID, MCI_SEEK, MCI_WAIT or MCI_TO, addr seekParams
+
+		invoke mciSendCommand, Mp3DeviceID, MCI_PLAY, MCI_NOTIFY or MCI_FROM, addr replayParams
+		ret; 返回0表示消息被处理
+
+	.endif
+
+	; 如果不是WM_LBUTTONDOWN消息，交给默认的处理函数
+	invoke CallWindowProc, OldProgressBarWndProc, hWnd, uMsg, wParam, lParam
+	ret
+
+ProgressBarWndProc endp
+; =============================================================================================================
+
+Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword ,lParam:LPARAM 
 
 	.if uMsg == WM_INITDIALOG 
 
 		invoke SetFocus, hWin    	; set the keyboard focus on the specified window 
 
 	invoke SetDlgItemText, hWin, 1001, addr FileName ;set filename to ID_STATIC1
+
+	invoke GetDlgItem, hWin, ID_PROGRESSBAR1
+	mov hProgressBar, eax
+	;invoke SendMessage, hProgressBar, PBM_SETRANGE, 0, MAKELPARAM(0,100) ; 设置进度条范围为0-100
+	;invoke SendMessage, hProgressBar, PBM_SETRANGE, 1, 100 ; 设置进度条范围为0-100
+	invoke SendMessage, hProgressBar, PBM_SETPOS, 20, 0 ; 初始化进度条位置为0
+
+	invoke GetWindowLong, hProgressBar, GWL_WNDPROC
+	mov OldProgressBarWndProc, eax ; 保存原始窗口过程地址
+	invoke SetWindowLong, hProgressBar, GWL_WNDPROC, addr ProgressBarWndProc
+
 
 	.elseif uMsg == WM_COMMAND
 		mov eax, aParam 
@@ -307,11 +420,16 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword
 				invoke crt_printf, OFFSET FileName
 				pop eax
 				invoke PlayMp3File, hWin, addr FileName 
+
+				
+				; 启动定时器，每100毫秒更新一次进度条
+				invoke SetTimer, hWin, 1, 100, 0
 				invoke SetDlgItemText, hWin, 1001, addr FileName ;set filename to ID_STATIC1
 			.endif 
 
 		.elseif eax == ID_BUTTON2 		; stop button 
 			invoke mciSendCommand, Mp3DeviceID, MCI_CLOSE, 0, 0
+			invoke SendMessage, hProgressBar, PBM_SETPOS, 0, 0
 			mov PlayFlag, 0 
 
 		.elseif eax == ID_BUTTON3 		; pause button 
@@ -338,9 +456,36 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword
 	.elseif uMsg == WM_CLOSE
 		invoke EndDialog, hWin, NULL 	; close the dialog box 
 
+
 	.elseif uMsg == MM_MCINOTIFY 
-		invoke mciSendCommand, Mp3DeviceID, MCI_CLOSE, 0, 0				
-		mov PlayFlag, 0
+		;mov eax,bParam
+		;and eax,0FFFFh
+
+		.if eax == MCI_NOTIFY
+			
+		.endif
+		;invoke mciSendCommand, Mp3DeviceID, MCI_CLOSE, 0, 0				
+		;mov PlayFlag, 0
+
+	.elseif uMsg == WM_TIMER
+	; 在定时器消息中更新进度条位置
+	; 假设 musicPosition 是当前音乐播放的位置
+		mov MciStatusParams.dwItem, MCI_STATUS_POSITION
+		mov MciStatusParams.dwCallback, 0 
+		invoke mciSendCommand, Mp3DeviceID, MCI_STATUS, MCI_STATUS_ITEM or MCI_WAIT, ADDR MciStatusParams
+		mov eax, MciStatusParams.dwReturn
+
+		imul eax,eax,100
+		mov edx,0
+		mov ebx,musicLength
+		idiv ebx
+		mov musicPosition, eax 
+	    invoke SendMessage, hProgressBar, PBM_SETPOS, musicPosition, 0
+
+	.elseif uMsg == WM_HSCROLL
+		; 处理水平滚动条消息
+		invoke crt_printf, OFFSET HereMsg
+		invoke HandleHorizontalScroll
 
 	.endif
 
@@ -349,7 +494,47 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword
 
 Multimedia endp 
 
+
+
 ;=====================================================================================
+PlayMp3File proc hWin:dword, NameOfFile:dword 
+
+	local mciOpenParms:MCI_OPEN_PARMS, mciPlayParms:MCI_PLAY_PARMS
+
+	; para: LPHMIDIIN lphMidiIn, UINT uDeviceID, DWORD_PTR dwCallback, DWORD_PTR dwCallbackInstance, DWORD dwFlags
+
+	mov eax, hWin
+	mov mciPlayParms.dwCallback, eax 
+
+	mov eax, offset Mp3Device 
+	mov mciOpenParms.lpstrDeviceType, eax 
+
+	mov eax, NameOfFile 
+	mov mciOpenParms.lpstrElementName, eax 
+
+	invoke mciSendCommand, 0, MCI_OPEN,MCI_OPEN_ELEMENT or MCI_WAIT, addr mciOpenParms
+	mov eax, mciOpenParms.wDeviceID 
+	mov Mp3DeviceID, eax
+	;invoke mciSendCommand, Mp3DeviceID, MCI_SET, 0, MCI_FORMAT_MILLISECONDS
+
+	invoke mciGetErrorString, eax, addr ErrorBuffer, sizeof ErrorBuffer
+	invoke crt_printf, OFFSET ErrorBuffer
+
+	invoke mciSendCommand, Mp3DeviceID, MCI_PLAY, MCI_NOTIFY, addr mciPlayParms
+
+	mov MciStatusParams.dwItem, MCI_STATUS_LENGTH
+	mov MciStatusParams.dwCallback, 0 
+		;invoke mciSendCommand, Mp3DeviceID, MCI_STATUS,MCI_STATUS_LENGTH, 0 ;这样不行
+	invoke mciSendCommand, Mp3DeviceID, MCI_STATUS, MCI_STATUS_ITEM or MCI_WAIT, ADDR MciStatusParams
+	mov eax, MciStatusParams.dwReturn
+	mov musicLength, eax ; ebx 存储音乐的总时长
+
+	ret 
+
+PlayMp3File endp 
+
+; ====================================================================================================================
+
 PlayLocalList proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword 
 
 	.if uMsg == WM_INITDIALOG 
@@ -412,31 +597,7 @@ PlayLocalList endp
 
 ; ====================================================================================================================
 
-PlayMp3File proc hWin:dword, NameOfFile:dword 
 
-	local mciOpenParms:MCI_OPEN_PARMS, mciPlayParms:MCI_PLAY_PARMS
-
-	; para: LPHMIDIIN lphMidiIn, UINT uDeviceID, DWORD_PTR dwCallback, DWORD_PTR dwCallbackInstance, DWORD dwFlags
-
-	mov eax, hWin
-	mov mciPlayParms.dwCallback, eax 
-
-	mov eax, offset Mp3Device 
-	mov mciOpenParms.lpstrDeviceType, eax 
-
-	mov eax, NameOfFile 
-	mov mciOpenParms.lpstrElementName, eax 
-
-	invoke mciSendCommand, 0, MCI_OPEN, MCI_OPEN_TYPE or MCI_OPEN_ELEMENT, addr mciOpenParms
-
-	mov eax, mciOpenParms.wDeviceID 
-	mov Mp3DeviceID, eax 
-	invoke mciSendCommand, Mp3DeviceID, MCI_PLAY, MCI_NOTIFY, addr mciPlayParms
-	ret 
-
-PlayMp3File endp 
-
-; ====================================================================================================================
 
 FindAllSoundFile PROC
 

@@ -4,7 +4,7 @@
 #define  ID_BUTTON2 202
 #define  ID_BUTTON3 203
 #define  ID_STATIC1  1001 
-
+#define  ID_PROGRESSBAR1 2001
 ; ================================================================================== =
 
 MAINSCREEN DIALOGEX 29, 28, 256, 120
@@ -15,6 +15,8 @@ FONT 8, "MS Sans Serif"
 BEGIN
 
 CONTROL         "music", ID_STATIC1, "STATIC", SS_LEFT | WS_CHILD | WS_VISIBLE, 80, 20, 230, 20
+
+CONTROL "IDC_PROGRESS", ID_PROGRESSBAR1, "msctls_progress32", PBS_SMOOTH | WS_CHILD | WS_VISIBLE, 30, 50, 200, 15
 
 PUSHBUTTON      "Play", ID_BUTTON1, 30, 90, 36, 20, BS_FLAT,
 WS_EX_DLGMODALFRAME

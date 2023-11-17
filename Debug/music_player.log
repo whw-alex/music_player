@@ -1,9 +1,9 @@
 ﻿  Assembling player.asm...
 player.asm(70): warning A4014: instructions and initialized data not supported in BSS segments
-player.asm(197): warning A6004: procedure argument or local not referenced : hPrevInst
-player.asm(197): warning A6004: procedure argument or local not referenced : CmdLine
-player.asm(197): warning A6004: procedure argument or local not referenced : CmdShow
-player.asm(488): warning A6004: procedure argument or local not referenced : bParam
-player.asm(488): warning A6004: procedure argument or local not referenced : lParam
-player.asm(589): warning A6004: procedure argument or local not referenced : bParam
+player.asm(198): warning A6004: procedure argument or local not referenced : hPrevInst
+player.asm(198): warning A6004: procedure argument or local not referenced : CmdLine
+player.asm(198): warning A6004: procedure argument or local not referenced : CmdShow
+player.asm(502): warning A6004: procedure argument or local not referenced : bParam
+player.asm(502): warning A6004: procedure argument or local not referenced : lParam
+player.asm(603): warning A6004: procedure argument or local not referenced : bParam
   music_player.vcxproj -> C:\Users\KakuGuo\Documents\Visual Studio 2012\Projects\music_player\Debug\music_player.exe

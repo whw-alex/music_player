@@ -125,6 +125,7 @@ endm
 	HereMsg          db  "here!",0
 	pnmhdr NMHDR <?> ; 通知消息结构体
 	OldProgressBarWndProc dd 0
+	TimerID        dd 0
     
 .code 
 start: 
@@ -397,7 +398,7 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword ,lParam:LPARA
 	mov hProgressBar, eax
 	;invoke SendMessage, hProgressBar, PBM_SETRANGE, 0, MAKELPARAM(0,100) ; 设置进度条范围为0-100
 	;invoke SendMessage, hProgressBar, PBM_SETRANGE, 1, 100 ; 设置进度条范围为0-100
-	invoke SendMessage, hProgressBar, PBM_SETPOS, 20, 0 ; 初始化进度条位置为0
+	invoke SendMessage, hProgressBar, PBM_SETPOS, 0, 0 ; 初始化进度条位置为0
 
 	invoke GetWindowLong, hProgressBar, GWL_WNDPROC
 	mov OldProgressBarWndProc, eax ; 保存原始窗口过程地址
@@ -424,13 +425,19 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword ,lParam:LPARA
 				
 				; 启动定时器，每100毫秒更新一次进度条
 				invoke SetTimer, hWin, 1, 100, 0
+				mov TimerID,eax
 				invoke SetDlgItemText, hWin, 1001, addr FileName ;set filename to ID_STATIC1
 			.endif 
 
 		.elseif eax == ID_BUTTON2 		; stop button 
-			invoke mciSendCommand, Mp3DeviceID, MCI_CLOSE, 0, 0
-			invoke SendMessage, hProgressBar, PBM_SETPOS, 0, 0
-			mov PlayFlag, 0 
+			.if PlayFlag != 0
+				invoke mciSendCommand, Mp3DeviceID, MCI_CLOSE, 0, 0
+				invoke KillTimer,hWin ,TimerID
+				invoke SendMessage, hProgressBar, PBM_SETPOS, 0, 0
+				invoke SetWindowText, hPauseBtn, addr PauseText
+				mov PlayFlag, 1  
+				mov PlayFlag, 0 
+			.endif
 
 		.elseif eax == ID_BUTTON3 		; pause button 
 			invoke GetDlgItem, hWin,  ID_BUTTON3 

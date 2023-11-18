@@ -3,11 +3,14 @@
 #define  ID_BUTTON1 201
 #define  ID_BUTTON2 202
 #define  ID_BUTTON3 203
+#define  ID_BUTTON7 207
 #define  ID_STATIC1  1001 
 #define  ID_PROGRESSBAR1 2001
+#define	 IDC_VolumeSlider 1101
+#define  IDC_VolumeDisplay 1102
 ; ================================================================================== =
 
-MAINSCREEN DIALOGEX 29, 28, 256, 120
+MAINSCREEN DIALOGEX 29, 28, 300, 120
 STYLE DS_MODALFRAME | DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_VISIBLE |
 WS_CAPTION | WS_SYSMENU
 CAPTION "Welcome :)"
@@ -27,6 +30,12 @@ WS_EX_DLGMODALFRAME
 PUSHBUTTON      "Pause", ID_BUTTON3, 170, 90, 36, 20, BS_FLAT,
 WS_EX_DLGMODALFRAME
 
+PUSHBUTTON      "Silence", ID_BUTTON7, 240, 90, 36, 20, BS_FLAT,
+WS_EX_DLGMODALFRAME
+
+CONTROL "", IDC_VolumeSlider, "msctls_trackbar32", 0x50010000, 240, 80, 53, 10, 0x00000000
+
+CONTROL "10", IDC_VolumeDisplay, "Static", 0x50000000, 240, 70, 53, 10, 0x00000000
 END
 
 

@@ -11,6 +11,10 @@ PlayMp3File proto :dword, :dword
 FindAllSoundFile proto    ;找到当前目录下所有的歌曲
 GetRandomNum proto :dword  ;这个参数是当前歌曲数量，返回一个【0，当前数量）的随机数
 
+show_volume proto :dword
+AlterVolume proto :dword ;改变音量
+HandleSilence proto :dword ;改变静音状态
+
 include C:\masm32\include\windows.inc
 include C:\masm32\include\user32.inc
 include C:\masm32\include\kernel32.inc
@@ -19,11 +23,13 @@ include C:\masm32\include\gdi32.inc
 include C:\masm32\include\winmm.inc
 include C:\masm32\include\user32.inc
 
+
 includelib C:\masm32\lib\user32.lib
 includelib C:\masm32\lib\kernel32.lib
 includelib C:\masm32\lib\comctl32.lib
 includelib C:\masm32\lib\gdi32.lib
 includelib C:\masm32\lib\winmm.lib
+
 
 includelib      msvcrt.lib
 include         msvcrt.inc
@@ -48,7 +54,10 @@ endm
 	ID_BUTTON4	equ			204
 	ID_BUTTON5	equ			205
 	ID_BUTTON6	equ			206
+	ID_BUTTON7	equ			207
 	ID_SHOWPATH 	equ  		1000
+	IDC_VOL_SLIDER	equ			1101
+	IDC_VOL_TXT		equ			1102
 	ID_PROGRESSBAR1	equ			2001
 
 	clientHeight    equ       480
@@ -71,6 +80,7 @@ endm
 	hPauseBtn      HWND        		? 
 	hFindFile      HANDLE ?             ;用于查找所有sound文件
 	hProgressBar   HANDLE ?
+	mci_cmd		   BYTE ?; mci控制命令
 
 
 .data 
@@ -102,6 +112,7 @@ endm
 	PlayFlag 		dd 	0 
 	Mp3FilePattern 		db 	"*.mp3", 0
 	WavFilePattern 		db 	"*.wav", 0
+	have_sound			byte 1	;是否有声音
 
 	SoundFileNum    dd  0
 	FileNameBuffer  db 100 dup(0)      ; 用于存储文件名的缓冲区
@@ -115,6 +126,9 @@ endm
 	PauseText       db  "Pause",0
 	ResumeText       db  "Resume",0
 
+	SilenceText		db "Silence",0
+	SoundText		db "Aloud",0
+
 	musicPosition    dd    0
 	musicLength      dd    0
 	ErrorBuffer		 db    2000 DUP(0)
@@ -126,6 +140,12 @@ endm
 	pnmhdr NMHDR <?> ; 通知消息结构体
 	OldProgressBarWndProc dd 0
 	TimerID        dd 0
+
+	int_fmt BYTE '%d',0	
+	cmd_open BYTE 'open "%s" alias my_song type mpegvideo',0
+	cmd_setVol BYTE "setaudio my_song volume to %d",0
+	mciGenericParams MCI_SET_PARMS <>
+	newVolume DWORD ?
     
 .code 
 start: 
@@ -332,10 +352,11 @@ local code:DWORD
 mov eax, [pnmhdr].code
 mov [code], eax
 
+
 ; 处理进度条通知消息
 .if [code] == PBM_DELTAPOS
 ; 在这里处理进度条位置变化的逻辑
-invoke HandleHorizontalScroll
+	invoke HandleHorizontalScroll
 .endif
 
 ret
@@ -403,12 +424,17 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword ,lParam:LPARA
 	invoke GetWindowLong, hProgressBar, GWL_WNDPROC
 	mov OldProgressBarWndProc, eax ; 保存原始窗口过程地址
 	invoke SetWindowLong, hProgressBar, GWL_WNDPROC, addr ProgressBarWndProc
-
+	invoke SendDlgItemMessage, hWin, IDC_VOL_SLIDER, TBM_SETPOS, 1, 1000
 
 	.elseif uMsg == WM_COMMAND
 		mov eax, aParam 
 
-		.if eax == ID_BUTTON1 			; play button	
+		.if eax == ID_BUTTON1 			; play button
+			mov eax, 20000    ; Place your calculated volume value here
+			mov ebx, eax    ; Set both left and right channel volumes to the same value
+			shl ebx, 16     ; Shift left by 16 bits for the right channel
+			; Call waveOutSetVolume to set the system volume
+			invoke waveOutSetVolume, 0, ebx
 			.if PlayFlag == 0           ;PlayFlag  0代表没有在播放的 1代表正在播放  2代表暂停
  				mov PlayFlag, 1 
 
@@ -418,7 +444,7 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword ,lParam:LPARA
 				imul eax,eax,SIZEOF FileNameBuffer
 				add eax,OFFSET FileList
 				invoke lstrcpy,ADDR FileName, eax
-				invoke crt_printf, OFFSET FileName
+				;invoke crt_printf, OFFSET FileName
 				pop eax
 				invoke PlayMp3File, hWin, addr FileName 
 
@@ -453,12 +479,20 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword ,lParam:LPARA
 				mov PlayFlag, 1  				
 
 			.endif
-
-
-
+		
+		.elseif eax == ID_BUTTON7 		; silence button 
+			invoke HandleSilence, hWin
+			.if have_sound == 1
+				invoke SetDlgItemText, hWin, 207, addr SoundText
+			.else 
+				invoke SetDlgItemText, hWin, 207, addr SilenceText
+			.endif
 		.endif 
 		
-		and eax, 0FFFFh 
+		and eax, 0FFFFh
+		
+	.elseif uMsg == WM_HSCROLL
+		invoke show_volume, hWin
 
 	.elseif uMsg == WM_CLOSE
 		invoke EndDialog, hWin, NULL 	; close the dialog box 
@@ -500,7 +534,6 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword ,lParam:LPARA
 	ret 
 
 Multimedia endp 
-
 
 
 ;=====================================================================================
@@ -564,6 +597,10 @@ PlayLocalList proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword
 				invoke SendDlgItemMessage, hWin, ID_LIST1, LB_GETCURSEL, 0, 0
 				invoke SendDlgItemMessage, hWin, ID_LIST1, LB_GETTEXT, eax, addr FileName
 				invoke PlayMp3File, hWin, addr FileName 
+
+				invoke wsprintf, ADDR mci_cmd, ADDR cmd_open, ADDR FileName
+				invoke mciSendString, ADDR mci_cmd, NULL, 0, NULL
+
 			.endif 
 
 		.elseif eax == ID_BUTTON5 		; stop button 
@@ -673,6 +710,67 @@ FindAllSoundFile PROC
 FindAllSoundFile ENDP
 
 ; ====================================================================================================================
+show_volume proc hWin: DWORD
+	local tmp: DWORD
+	invoke SendDlgItemMessage,hWin,IDC_VOL_SLIDER,TBM_GETPOS,0,0;获取当前Slider游标位置
+	;设置文字显示音量
+	mov tmp, 10
+	mov edx, 0
+	div tmp
+	invoke wsprintf, addr mci_cmd, addr int_fmt, eax
+	invoke SendDlgItemMessage, hWin, IDC_VOL_TXT, WM_SETTEXT, 0, addr mci_cmd
+	invoke AlterVolume, hWin
+	Ret
+show_volume endp
+
+; ====================================================================================================================
+
+AlterVolume PROC hWin: dword
+	invoke SendDlgItemMessage,hWin,IDC_VOL_SLIDER,TBM_GETPOS,0,0	;获取当前Slider位置
+
+	.if have_sound == 1
+		;invoke AlterVolume, hWin
+		mov ecx, 200       
+	    imul eax, ecx
+
+		;mov eax, 1000    ; Place your calculated volume value here
+		mov ebx, eax    ; Set both left and right channel volumes to the same value
+		shl ebx, 16     ; Shift left by 16 bits for the right channel
+
+		; Call waveOutSetVolume to set the system volume
+		invoke waveOutSetVolume, 0, ebx
+	.else
+		;invoke AlterVolume, hWin
+		mov eax, 0    ; Place your calculated volume value here
+		mov ebx, eax    ; Set both left and right channel volumes to the same value
+		shl ebx, 16     ; Shift left by 16 bits for the right channel
+
+		; Call waveOutSetVolume to set the system volume
+		invoke waveOutSetVolume, 0, ebx
+	.endif
+
+	mov mciGenericParams.dwAudio, 0 ; 设置音量值，volume_value 是你想设置的音量数值
+	mov eax, hWin
+	mov mciGenericParams.dwCallback, 0
+	;invoke mciSendCommand, Mp3DeviceID, MCI_SET_AUDIO, MCI_NOTIFY, addr mciGenericParams
+	invoke mciSendCommand, Mp3DeviceID, MCI_SET, MCI_SET_AUDIO_ALL, ADDR mciGenericParams
+
+	ret
+AlterVolume ENDP
+
+; ====================================================================================================================
+
+HandleSilence PROC hWin: dword
+	.if have_sound == 1
+		mov have_sound,0
+	.else
+		mov have_sound,1
+	.endif
+	invoke AlterVolume, hWin
+	ret
+HandleSilence ENDP
+
+; ====================================================================================================================
 
 GetRandomNum PROC total_num:DWORD
 	push edx
@@ -687,6 +785,5 @@ GetRandomNum PROC total_num:DWORD
 GetRandomNum ENDP
 
 end start 
-
 
 

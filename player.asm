@@ -482,7 +482,7 @@ Multimedia proc hWin:dword, uMsg:dword, aParam:dword, bParam:dword ,lParam:LPARA
 		
 		.elseif eax == ID_BUTTON7 		; silence button 
 			invoke HandleSilence, hWin
-			.if have_sound == 1
+			.if have_sound == 0
 				invoke SetDlgItemText, hWin, 207, addr SoundText
 			.else 
 				invoke SetDlgItemText, hWin, 207, addr SilenceText
